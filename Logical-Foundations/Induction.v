@@ -5,6 +5,7 @@
 
 Require Export Basics.
 
+
 (** For the [Require Export] to work, you first need to use
     [coqc] to compile [Basics.v] into [Basics.vo].  This is like
     making a .class file from a .java file, or a .o file from a .c
@@ -683,10 +684,152 @@ Qed.
     Again, feel free to change your earlier definitions if this helps
     here. *)
 
-(* Fixpoint nat_to_bin (n : nat) : bin :=
+(* (a) *)
+
+Fixpoint nat_to_bin (n : nat) : bin :=
   match n with 
+  | O => BO
+  | S n' => incr (nat_to_bin n')
+  end. 
+
+Lemma plus_S_S_SS: forall (n m : nat),
+  S n + S m = S( S( n + m)).
   
-  end. *)
+Proof. 
+  intros. simpl. induction n as [|n'].
+  - reflexivity.
+  - simpl. rewrite -> IHn'. reflexivity.
+Qed.
+
+Lemma swap_bin_to_nat_incr: forall (b : bin),
+  bin_to_nat (incr b) = S (bin_to_nat b). 
+
+Proof.
+  intros. induction b as [| b' | b''].
+  - simpl. reflexivity.
+  - simpl. reflexivity.
+  - simpl. rewrite -> IHb''. rewrite -> plus_S_S_SS. reflexivity.
+Qed.
+  
+Lemma TZ_neq_Z : S1 BO <> BO.
+Proof.
+  discriminate.
+Qed.  
+  
+Theorem nat_to_bin_to_nat: forall (n : nat), 
+  bin_to_nat (nat_to_bin n) = n.
+  
+Proof.
+  intros. induction n as [|n' IHn'].
+  - simpl. reflexivity.
+  - simpl. rewrite -> swap_bin_to_nat_incr. rewrite -> IHn'. reflexivity.
+Qed. 
+  
+(*  (b)  *)
+
+(* There are many representations of 0, e.g. BO, S1 BO, S1 S1 BO etc. 
+   We can visualize the inductive type bin as an automata with infinite states, like this :
+   
+                             /-----\
+                             |     | S1
+                             |     |
+                    -----> (BO)<---/
+                             |
+                             | S2
+                             |
+                             V
+                            (1)
+                           /  \
+                          /    \
+                      S1 /      \ S2
+                        /        \
+                      (2)        (3)
+                  S1  / \ S2  S1 / \ S2
+                     /   \      /   \
+                   (4)   (5)  (6)   (7)
+                   
+    If we work on N*, we havn't ambiguity and we have a complete binary tree instead.
+*)
+
+(* (c) *)
+
+Fixpoint eliminate_S1 (b:bin) : bin :=
+  match b with
+  | S1 b' => eliminate_S1 b'
+  | _ => b
+  end.
+
+Fixpoint normalize (b:bin) : bin :=
+  match b with
+  | BO => BO
+  | S2 x => b
+  | S1 x => match normalize x with
+            | BO => BO
+            | x => S1 x
+            end
+  end.
+
+Compute normalize (S1 (S1 BO)).
+
+Lemma move_out_S1: forall b:bin, 
+  bin_to_nat (S1 b) = 2 * (bin_to_nat b).
+  
+Proof. 
+  intros. simpl. rewrite <- plus_n_O. reflexivity.
+Qed.
+
+(* Lemma move_out_double_S: forall n:nat,
+  nat_to_bin (n + S (S n)) = incr( incr( nat_to_bin (n+n))).
+  
+Proof.
+  intros. induction n.
+  - simpl. reflexivity.
+  - simpl. rewrite <- IHn. *)
+
+Lemma move_out_s : forall n:nat,
+  nat_to_bin(S n) = incr(nat_to_bin n).
+  
+Proof.
+  intros. simpl. reflexivity.
+Qed.
+
+Lemma move_out_double_S: forall n:nat, 
+  n + S (S n) = S(S(n+n)).
+Proof.
+  intros. induction n.
+  - simpl. reflexivity.
+  - simpl. rewrite <- plus_n_Sm. rewrite <- plus_n_Sm. reflexivity.
+Qed.
+  
+Lemma move_out_incr:forall n:nat,
+incr (nat_to_bin (n + S n)) = incr( incr( nat_to_bin (n + n))).
+
+Proof.
+  intros. induction n.
+  - simpl. reflexivity.
+  - simpl. rewrite -> IHn. simpl. rewrite -> move_out_double_S. rewrite -> move_out_s. rewrite -> move_out_s. reflexivity.
+Qed. 
+
+Lemma move_out_2: forall n:nat,
+  nat_to_bin (2 * n) = normalize(S1 (nat_to_bin n)).
+  
+Proof.
+  intros. simpl. rewrite <- plus_n_O. induction n.
+    - simpl. reflexivity.
+    - simpl. rewrite -> move_out_incr. rewrite->IHn.  
+  Admitted.
+
+Theorem bin_to_nat_to_bin: forall b:bin, 
+  nat_to_bin(bin_to_nat b) = normalize b.
+ 
+Proof.
+  intros b. induction b. 
+  - reflexivity.
+  - rewrite -> move_out_S1. rewrite->move_out_2. rewrite -> IHb. simpl.  
+Abort.
+
+  (* TODO: come back later .... *)
+  
 (** [] *)
 
 
